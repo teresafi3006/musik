@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MusicaEuropa – Europäische Musikgeschichte</title>
+  <meta name="description" content="Interaktive Lern- und Testplattform für Studierende der europäischen Musikgeschichte." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { serif: ['Georgia', 'Cambria', 'serif'] },
+          colors: { stone: { 850: '#201e1b', 950: '#0c0a09' } }
+        }
+      }
+    };
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    html { scroll-behavior: smooth; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0c0a09; }
+    ::-webkit-scrollbar-thumb { background: #292524; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-stone-950 text-stone-100 min-h-screen font-sans selection:bg-amber-600 selection:text-stone-950">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    class AudioSynthesizerEngine {
+      constructor() { this.ctx = null; this.isPlaying = false; this.activeNodes = []; }
+      initContext() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContextClass();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      stopAll() {
+        this.isPlaying = false;
+        this.activeNodes.forEach(node => { try { if ('stop' in node) node.stop(); node.disconnect(); } catch (e) {} });
+        this.activeNodes = [];
+      }
+      noteToFreq(note) {
+        const notes = {
+          'C3': 130.81, 'D3': 146.83, 'Eb3': 155.56, 'E3': 164.81, 'F3': 174.61, 'F#3': 185.00,
+          'G3': 196.00, 'Ab3': 207.65, 'A3': 220.00, 'Bb3': 233.08, 'B3': 246.94,
+          'C4': 261.63, 'C#4': 277.18, 'D4': 293.66, 'Eb4': 311.13, 'E4': 329.63, 'F4': 349.23,
+          'F#4': 369.99, 'G4': 392.00, 'G#4': 415.30, 'Ab4': 415.30, 'A4': 440.00, 'Bb4': 466.16,
+          'B4': 493.88, 'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99
+        };
+        return notes[note] || 440;
+      }
+      playGregorianChant(onComplete) {
+        this.stopAll(); this.initContext(); if (!this.ctx) return; const ctx = this.ctx; this.isPlaying = true;
+        const melody = [{ note: 'D4', dur: 0.8 }, { note: 'F4', dur: 0.6 }, { note: 'G4', dur: 0.7 }, { note: 'A4', dur: 1.0 }, { note: 'C5', dur: 0.6 }, { note: 'B4', dur: 0.5 }, { note: 'A4', dur: 0.8 }, { note: 'G4', dur: 0.7 }, { note: 'F4', dur: 0.6 }, { note: 'E4', dur: 0.7 }, { note: 'D4', dur: 1.6 }];
+        let time = ctx.currentTime + 0.1;
+        for (const item of melody) {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.type = 'sine'; osc.frequency.setValueAtTime(this.noteToFreq(item.note), time);
+          gain.gain.setValueAtTime(0.001, time); gain.gain.linearRampToValueAtTime(0.25, time + 0.15); gain.gain.exponentialRampToValueAtTime(0.001, time + item.dur);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(time); osc.stop(time + item.dur); this.activeNodes.push(osc, gain);
+          time += item.dur * 0.9;
+        }
+        setTimeout(() => { if (this.isPlaying) { this.isPlaying = false; onComplete && onComplete(); } }, Math.max(100, (time - ctx.currentTime) * 1000));
+      }
+      playBaroqueContinuo(onComplete) {
+        this.stopAll(); this.initContext(); if (!this.ctx) return; const ctx = this.ctx; this.isPlaying = true;
+        const sequence = [{ bass: 'A3', dur: 0.8 }, { bass: 'D3', dur: 0.8 }, { bass: 'G3', dur: 0.8 }, { bass: 'C3', dur: 0.8 }, { bass: 'F3', dur: 0.8 }, { bass: 'B3', dur: 0.8 }, { bass: 'E3', dur: 1.0 }, { bass: 'A3', dur: 1.5 }];
+        let time = ctx.currentTime + 0.1;
+        for (const step of sequence) {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(this.noteToFreq(step.bass), time);
+          gain.gain.setValueAtTime(0.18, time); gain.gain.exponentialRampToValueAtTime(0.001, time + step.dur * 0.9);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(time); osc.stop(time + step.dur); this.activeNodes.push(osc, gain);
+          time += step.dur;
+        }
+        setTimeout(() => { if (this.isPlaying) { this.isPlaying = false; onComplete && onComplete(); } }, Math.max(100, (time - ctx.currentTime) * 1000));
+      }
+      playClassicalSonata(onComplete) {
+        this.stopAll(); this.initContext(); if (!this.ctx) return; const ctx = this.ctx; this.isPlaying = true;
+        const melody = [{ note: 'C5', time: 0, dur: 1.0 }, { note: 'E5', time: 1.0, dur: 0.5 }, { note: 'G5', time: 1.5, dur: 0.5 }, { note: 'B4', time: 2.0, dur: 0.75 }, { note: 'C5', time: 2.75, dur: 0.25 }, { note: 'D5', time: 3.0, dur: 0.5 }, { note: 'C5', time: 3.5, dur: 1.0 }];
+        const startTime = ctx.currentTime + 0.1;
+        melody.forEach(item => {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(this.noteToFreq(item.note), startTime + item.time);
+          gain.gain.setValueAtTime(0.18, startTime + item.time); gain.gain.exponentialRampToValueAtTime(0.001, startTime + item.time + item.dur);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(startTime + item.time); osc.stop(startTime + item.time + item.dur); this.activeNodes.push(osc, gain);
+        });
+        setTimeout(() => { if (this.isPlaying) { this.isPlaying = false; onComplete && onComplete(); } }, 5000);
+      }
+      playRomanticTristan(onComplete) {
+        this.stopAll(); this.initContext(); if (!this.ctx) return; const ctx = this.ctx; this.isPlaying = true;
+        const startTime = ctx.currentTime + 0.1;
+        ['F3', 'B3', 'D#4', 'G#4'].forEach(note => {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(this.noteToFreq(note), startTime);
+          gain.gain.setValueAtTime(0.14, startTime); gain.gain.exponentialRampToValueAtTime(0.005, startTime + 4.5);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(startTime); osc.stop(startTime + 4.5); this.activeNodes.push(osc, gain);
+        });
+        setTimeout(() => { if (this.isPlaying) { this.isPlaying = false; onComplete && onComplete(); } }, 5000);
+      }
+      playTwelveToneRow(onComplete) {
+        this.stopAll(); this.initContext(); if (!this.ctx) return; const ctx = this.ctx; this.isPlaying = true;
+        const notes = ['C4', 'C#4', 'E4', 'D#4', 'G4', 'F#4', 'F4', 'A4', 'Ab4', 'Bb4', 'B4', 'D4'];
+        let time = ctx.currentTime + 0.1;
+        notes.forEach((note, idx) => {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.type = idx % 2 === 0 ? 'sine' : 'triangle'; osc.frequency.setValueAtTime(this.noteToFreq(note), time);
+          gain.gain.setValueAtTime(0.001, time); gain.gain.linearRampToValueAtTime(0.2, time + 0.05); gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(time); osc.stop(time + 0.5); this.activeNodes.push(osc, gain);
+          time += 0.5;
+        });
+        setTimeout(() => { if (this.isPlaying) { this.isPlaying = false; onComplete && onComplete(); } }, Math.max(100, (time - ctx.currentTime) * 1000));
+      }
+    }
+    const audioSynth = new AudioSynthesizerEngine();
+
+    const EPOCHS = [
+      { id: 'mittelalter', name: 'Mittelalter', period: 'ca. 500 – 1400', tagline: 'Vom einstimmigen Choral zur ersten Mehrstimmigkeit', audio: 'gregorian' },
+      { id: 'renaissance', name: 'Renaissance', period: 'ca. 1400 – 1600', tagline: 'Die Blüte der Vokalpolyphonie & Humanismus', audio: 'gregorian' },
+      { id: 'barock', name: 'Barock', period: 'ca. 1600 – 1750', tagline: 'Generalbass, Opernerfindung & Monumentaler Kontrapunkt', audio: 'baroque' },
+      { id: 'klassik', name: 'Wiener Klassik', period: 'ca. 1750 – 1827', tagline: 'Klarheit, Ausgewogenheit & Die Sonatenhauptsatzform', audio: 'classic' },
+      { id: 'romantik', name: 'Romantik', period: 'ca. 1820 – 1910', tagline: 'Subjektivität, Weltschmerz & Entgrenzung der Harmonik', audio: 'romantic' },
+      { id: 'moderne', name: 'Moderne', period: 'ab ca. 1900', tagline: 'Emanzipation der Dissonanz & Dodekaphonie', audio: 'modern' }
+    ];
+
+    const QUIZ = [
+      { q: 'Welche tonale Disposition kennzeichnet die Reprise eines Sonatenhauptsatzes?', opts: ['HT in Dominante, ST in Tonika', 'HT in Tonika, ST in Dominante', 'Sowohl HT als auch ST stehen in der Tonika (T)', 'Beide in Moll'], c: 2, exp: 'In der Reprise wird der tonale Konflikt gelöst: Beide Themen erklingen in der Tonika.' },
+      { q: 'Was unterscheidet bei einer barocken Fuge den "Comes" vom "Dux"?', opts: ['Comes ist Krebs', 'Dux auf Tonika, Comes auf Dominante', 'Comes ist Kontrasubjekt', 'Comes nur für Bass'], c: 1, exp: 'Dux ist das Thema auf der Tonika, Comes die Beantwortung auf der Dominante.' },
+      { q: 'Welche Töne bilden Wagners Tristan-Akkord?', opts: ['F – H – D# – G#', 'C – E – G – B', 'D – F# – A – C#', 'G – H – D – F#'], c: 0, exp: 'Der Tristan-Akkord besteht aus F – H – D# – G#.' },
+      { q: 'Pioniertat von Guido von Arezzo (ca. 992–1050)?', opts: ['Basso Continuo', 'Solmisation & Terzenliniensystem', '12-Ton-Reihe', 'Oper'], c: 1, exp: 'Guido von Arezzo erfand farbige Terzlinien und Tonsilben.' }
+    ];
+
+    function App() {
+      const [tab, setTab] = useState('timeline');
+      const [quizIdx, setQuizIdx] = useState(0);
+      const [answers, setAnswers] = useState({});
+      const [showRes, setShowRes] = useState(false);
+      const [revealed, setRevealed] = useState(false);
+
+      const q = QUIZ[quizIdx];
+      const score = Object.keys(answers).reduce((acc, id) => acc + (answers[id] === QUIZ[id]?.c ? 1 : 0), 0);
+
+      const handleAudio = (type) => {
+        if (type === 'gregorian') audioSynth.playGregorianChant();
+        else if (type === 'baroque') audioSynth.playBaroqueContinuo();
+        else if (type === 'classic') audioSynth.playClassicalSonata();
+        else if (type === 'romantic') audioSynth.playRomanticTristan();
+        else if (type === 'modern') audioSynth.playTwelveToneRow();
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
+          <header className="flex items-center justify-between border-b border-stone-800 pb-4">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl text-amber-500 font-serif font-bold">𝄞</span>
+              <div>
+                <h1 className="font-serif text-xl font-bold text-amber-100">MusicaEuropa</h1>
+                <p className="text-xs text-stone-400">Offline- & GitHub-Pages-Version</p>
+              </div>
+            </div>
+            <nav className="flex gap-2">
+              {['timeline', 'quiz'].map(t => (
+                <button key={t} onClick={() => setTab(t)} className={"px-3 py-1.5 rounded-lg text-xs font-bold " + (tab === t ? "bg-amber-900/60 text-amber-200 border border-amber-600" : "bg-stone-900 text-stone-300")}>
+                  {t === 'timeline' ? 'Zeitleiste & Audio' : 'Selbsttest'}
+                </button>
+              ))}
+              <button onClick={() => audioSynth.stopAll()} className="p-1.5 text-xs text-rose-400 bg-stone-900 rounded-lg">⏹</button>
+            </nav>
+          </header>
+
+          {tab === 'timeline' ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {EPOCHS.map(ep => (
+                  <div key={ep.id} className="p-4 bg-stone-900 border border-stone-800 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-mono text-amber-400">{ep.period}</span>
+                      <button onClick={() => handleAudio(ep.audio)} className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-amber-300 text-xs rounded-lg border border-stone-700">▶ Audio</button>
+                    </div>
+                    <h3 className="font-serif text-lg font-bold text-stone-100">{ep.name}</h3>
+                    <p className="text-xs text-stone-400">{ep.tagline}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 bg-stone-900 border border-stone-800 rounded-2xl space-y-4">
+              {!showRes ? (
+                <>
+                  <div className="text-xs text-stone-400">Frage {quizIdx + 1} von {QUIZ.length}</div>
+                  <h3 className="font-serif text-lg font-bold text-stone-100">{q.q}</h3>
+                  <div className="grid gap-2">
+                    {q.opts.map((opt, i) => (
+                      <button key={i} disabled={revealed} onClick={() => { setAnswers({ ...answers, [quizIdx]: i }); setRevealed(true); }} className={"p-3 rounded-lg border text-left text-xs font-medium " + (revealed ? (i === q.c ? "bg-emerald-950 border-emerald-500 text-emerald-200" : (answers[quizIdx] === i ? "bg-rose-950 border-rose-500 text-rose-200" : "bg-stone-950 border-stone-850 opacity-40")) : "bg-stone-950 border-stone-800 hover:border-stone-700 text-stone-200")}>
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  {revealed && (
+                    <div className="p-3 bg-stone-950 rounded-lg text-xs space-y-2">
+                      <p className="text-stone-300">{q.exp}</p>
+                      <button onClick={() => { if (quizIdx < QUIZ.length - 1) { setQuizIdx(quizIdx + 1); setRevealed(false); } else setShowRes(true); }} className="px-4 py-2 bg-amber-600 text-stone-950 font-bold rounded-lg text-xs">
+                        {quizIdx < QUIZ.length - 1 ? 'Nächste Frage ▶' : 'Ergebnis anzeigen ▶'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-6 space-y-4">
+                  <div className="text-4xl">🎓</div>
+                  <h3 className="font-serif text-xl font-bold">Ergebnis: {score} von {QUIZ.length} richtig ({Math.round(score/QUIZ.length * 100)}%)</h3>
+                  <button onClick={() => { setQuizIdx(0); setAnswers({}); setShowRes(false); setRevealed(false); }} className="px-4 py-2 bg-amber-600 text-stone-950 font-bold rounded-lg text-xs">Neustart</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
